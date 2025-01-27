@@ -8,7 +8,7 @@
 	  position: -webkit-sticky; /* For Safari */
 	  position: sticky;
 	  bottom: 0; /* Stick it to the bottom of the screen */
-	  left: 35%; /* Centers the image horizontally */
+	  left: 32.5%; /* Centers the image horizontally */
 	  transform: translateX(-50%); /* Adjusts to exactly center the image */
 	  width: 450px; /* Adjust width to make the image smaller */
 	  height: auto; /* Maintains aspect ratio */
@@ -21,7 +21,7 @@
 	}
   </style>
   
-  <div class="content">
+  <div class="content bottom-0">
   </div>
   
 <img class="sticky-image" src="src/p-trans.png" alt="felix :3" />
