@@ -24,7 +24,7 @@
   <div class="content bottom-0">
   </div>
   
-<img class="sticky-image" src="src/p-trans.png" alt="felix :3" />
+<img class="sticky-image" src="https://imgur.com/a/6pYWcjd" alt="felix :3" />
 
 <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-[#d66a6f] text-2xl md:Zen-Kaku-Gothic-New">
 	<h1 class='flex items-center justify-center text-5xl'>Welcome to felixargyle.dev!</h1>
