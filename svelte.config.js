@@ -9,3 +9,9 @@ export default {
     }),
   ],
 };
+
+const config = {
+  kit: {
+    prerender: { default: true }
+  }
+};
