@@ -1,17 +1,21 @@
-import sveltePreprocess from "svelte-preprocess";
+import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
+import adapter from '@sveltejs/adapter-netlify';
 
-export default {
-  // Consult https://github.com/sveltejs/svelte-preprocess
-  // for more information about preprocessors
-  preprocess: [
-    sveltePreprocess({
-      postcss: true,
-    }),
-  ],
-};
-
+/** @type {import('@sveltejs/kit').Config} */
 const config = {
-  kit: {
-    prerender: { default: true }
-  }
+	kit: {
+		adapter: adapter({
+			precompress: true,
+		}),
+		alias: {
+			$components: './src/components',
+			$stores: './src/stores',
+			$images: './src/images',
+			$icons: './src/icons',
+			$utils: './src/utils'
+		}
+	},
+	preprocess: vitePreprocess()
 };
+
+export default config;
