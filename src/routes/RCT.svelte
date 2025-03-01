@@ -8,6 +8,11 @@
     let inspectionRunning: boolean = false;
     let inspectionStart: number;
     let inspectionDisplay: string = "0.00";
+    let timerHidden: boolean = false;
+    let lastRecordedTime: string = "";
+    
+    // Settings menu
+    let showSettings: boolean = false;
     
     // Stackmat related variables
     let stackmatConnected: boolean = false;
@@ -159,12 +164,19 @@
     }
   
     function stopTimer(): void {
-      if (running) {
+    if (running) {
         running = false;
+        // Store the current display time before resetting internal time value
+        lastRecordedTime = displayTime;
         times = [...times, { time, dnf: false, plus2: false }];
+        
+        // Don't reset the display time immediately if timer is hidden
+        if (!timerHidden) {
         time = 0;
         displayTime = "0.00";
-      }
+        }
+        // If timer is hidden, keep the last time showing (handled by the display logic)
+    }
     }
   
     function updateTimer(): void {
@@ -177,13 +189,18 @@
     }
   
     function resetTimer(): void {
-      if (inspectionRunning) {
+    if (inspectionRunning) {
         inspectionRunning = false;
         inspectionTime = 0;
         inspectionDisplay = "0.00";
-      } else if (running) {
+    } else if (running) {
         stopTimer();
-      }
+    }
+    // Reset display values but keep lastRecordedTime if timer is hidden
+    if (!timerHidden) {
+        time = 0;
+        displayTime = "0.00";
+    }
     }
   
     function startInspection(): void {
@@ -260,23 +277,31 @@
     }
   
     function handleSpacebar(event: KeyboardEvent): void {
-      if (event.code === "Space") {
+    if (event.code === "Space") {
         event.preventDefault();
         if (running) {
-          stopTimer();
+        stopTimer();
         } else if (inspectionRunning) {
-          inspectionRunning = false;
-          startTimer();
+        inspectionRunning = false;
+        startTimer();
         } else {
-          startInspection();
+        // Reset display time when starting a new solve/inspection
+        if (timerHidden) {
+            // Only need to reset internal values since display shows SOLVE during running
+            time = 0;
+            displayTime = "0.00";
         }
-      } else if (event.code === "Escape") {
+        startInspection();
+        }
+    } else if (event.code === "Escape") {
         resetTimer();
-      } else if (event.code === "KeyC" && event.ctrlKey) {
+    } else if (event.code === "KeyC" && event.ctrlKey) {
         clearTimes();
-      }
+    } else if (event.code === "KeyH" && event.ctrlKey) {
+        toggleTimerVisibility();
     }
-  
+    }
+
     function toggleDNF(index: number): void {
       times[index].dnf = !times[index].dnf;
       times = [...times];
@@ -289,6 +314,14 @@
     
     function toggleColorPicker(): void {
       showColorPicker = !showColorPicker;
+    }
+    
+    function toggleSettings(): void {
+      showSettings = !showSettings;
+    }
+    
+    function toggleTimerVisibility(): void {
+      timerHidden = !timerHidden;
     }
     
     function applyTheme(theme: { bg: string, text: string, accent: string }): void {
@@ -327,104 +360,210 @@
 <svelte:window on:keydown={handleSpacebar} />
   
 <div style="background-color: {bgColor}; color: {textColor};" class="min-h-screen flex flex-col items-center justify-center p-4 relative">
-    <!-- Theme selector in top left -->
-    <div class="absolute top-4 left-4 z-10">
-      <button 
-        style="background-color: {accentColor}; color: {buttonTextColor};"
-        class="px-4 py-2 rounded font-bold flex items-center"
-        on:click={toggleColorPicker}
-      >
-        <span class="mr-2">Theme</span>
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" fill="none"/>
-          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z" fill="currentColor"/>
-        </svg>
-      </button>
-      
-      {#if showColorPicker}
-        <div class="absolute top-12 left-0 bg-white p-4 rounded shadow-lg w-64">
-          <div class="mb-4">
-            <h3 class="text-black font-bold mb-2">Preset Themes</h3>
-            <div class="grid grid-cols-5 gap-2">
-              {#each presetThemes as theme}
-                <button 
-                  class="w-8 h-8 rounded-full border border-gray-300"
-                  style="background-color: {theme.accent};"
-                  on:click={() => applyTheme(theme)}
-                  title={theme.name}
-                ></button>
-              {/each}
-            </div>
-          </div>
-          
-          <div class="mb-3">
-            <h3 class="text-black font-bold mb-1">Background</h3>
-            <div class="flex items-center">
-              <input type="color" bind:value={bgColor} class="w-8 h-8 mr-2" />
-              <input 
-                type="text" 
-                bind:value={bgColor} 
-                class="flex-1 px-2 py-1 border border-gray-300 rounded text-black"
-              />
-            </div>
-          </div>
-          
-          <div class="mb-3">
-            <h3 class="text-black font-bold mb-1">Text</h3>
-            <div class="flex items-center">
-              <input type="color" bind:value={textColor} class="w-8 h-8 mr-2" />
-              <input 
-                type="text" 
-                bind:value={textColor} 
-                class="flex-1 px-2 py-1 border border-gray-300 rounded text-black"
-              />
-            </div>
-          </div>
-          
-          <div class="mb-3">
-            <h3 class="text-black font-bold mb-1">Accent</h3>
-            <div class="flex items-center">
-              <input type="color" bind:value={accentColor} class="w-8 h-8 mr-2" />
-              <input 
-                type="text" 
-                bind:value={accentColor} 
-                class="flex-1 px-2 py-1 border border-gray-300 rounded text-black"
-              />
-            </div>
-          </div>
-          
+    <!-- Top navbar -->
+    <div class="absolute top-0 left-0 right-0 flex justify-between items-center p-4">
+        <!-- Theme selector -->
+        <button 
+          style="background-color: {accentColor}; color: {buttonTextColor};"
+          class="px-4 py-2 rounded font-bold flex items-center"
+          on:click={toggleColorPicker}
+        >
+          <span class="mr-2">Theme</span>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" fill="none"/>
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z" fill="currentColor"/>
+          </svg>
+        </button>
+
+        <div class="flex space-x-4">
+          <!-- GitHub link -->
+          <a 
+            href="https://github.com/dgtlnght/felixargyle.dev" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            style="background-color: {accentColor}; color: {buttonTextColor};"
+            class="px-4 py-2 rounded font-bold flex items-center"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2">
+              <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path>
+            </svg>
+            GitHub
+          </a>
+
+          <!-- Toggle timer visibility -->
           <button 
             style="background-color: {accentColor}; color: {buttonTextColor};"
-            class="w-full py-2 rounded font-bold"
-            on:click={() => showColorPicker = false}
+            class="px-4 py-2 rounded font-bold"
+            on:click={toggleTimerVisibility}
           >
-            Apply
+            {timerHidden ? 'Show Timer' : 'Hide Timer'}
+          </button>
+
+          <!-- Settings button -->
+          <button 
+            style="background-color: {accentColor}; color: {buttonTextColor};"
+            class="px-4 py-2 rounded font-bold flex items-center"
+            on:click={toggleSettings}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2">
+              <circle cx="12" cy="12" r="3"></circle>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+            </svg>
+            Settings
           </button>
         </div>
-      {/if}
     </div>
     
-    <!-- Stackmat connection button in top right -->
-    <div class="absolute top-4 right-4">
-      {#if !stackmatConnected}
-        <button style="background-color: {accentColor}; color: {buttonTextColor};" class="px-4 py-2 rounded font-bold" on:click={initStackmat}>
-          Connect Stackmat
-        </button>
-      {:else}
-        <button style="background-color: {accentColor}; color: {buttonTextColor};" class="px-4 py-2 rounded font-bold" on:click={disconnectStackmat}>
-          Disconnect Stackmat {stackmatConnected ? '(Connected)' : ''}
-        </button>
-      {/if}
+    {#if showColorPicker}
+    <div class="absolute top-16 left-4 p-4 rounded shadow-lg w-64 z-20" style="background-color: {bgColor}; border: 2px solid {accentColor};">
+      <div class="mb-4">
+        <h3 class="font-bold mb-2" style="color: {textColor};">Preset Themes</h3>
+        <div class="grid grid-cols-5 gap-2">
+          {#each presetThemes as theme}
+            <button 
+              class="w-8 h-8 rounded-full border"
+              style="background-color: {theme.accent}; border-color: {textColor};"
+              on:click={() => applyTheme(theme)}
+              title={theme.name}
+            ></button>
+          {/each}
+        </div>
+      </div>
+      
+      <div class="mb-3">
+        <h3 class="font-bold mb-1" style="color: {textColor};">Background</h3>
+        <div class="flex items-center">
+          <input type="color" bind:value={bgColor} class="w-8 h-8 mr-2" />
+          <input 
+            type="text" 
+            bind:value={bgColor} 
+            class="flex-1 px-2 py-1 border rounded" 
+            style="border-color: {accentColor}; background-color: {bgColor}; color: {textColor};"
+          />
+        </div>
+      </div>
+      
+      <div class="mb-3">
+        <h3 class="font-bold mb-1" style="color: {textColor};">Text</h3>
+        <div class="flex items-center">
+          <input type="color" bind:value={textColor} class="w-8 h-8 mr-2" />
+          <input 
+            type="text" 
+            bind:value={textColor} 
+            class="flex-1 px-2 py-1 border rounded"
+            style="border-color: {accentColor}; background-color: {bgColor}; color: {textColor};"
+          />
+        </div>
+      </div>
+      
+      <div class="mb-3">
+        <h3 class="font-bold mb-1" style="color: {textColor};">Accent</h3>
+        <div class="flex items-center">
+          <input type="color" bind:value={accentColor} class="w-8 h-8 mr-2" />
+          <input 
+            type="text" 
+            bind:value={accentColor} 
+            class="flex-1 px-2 py-1 border rounded"
+            style="border-color: {accentColor}; background-color: {bgColor}; color: {textColor};"
+          />
+        </div>
+      </div>
+      
+      <button 
+        style="background-color: {accentColor}; color: {buttonTextColor};"
+        class="w-full py-2 rounded font-bold"
+        on:click={() => showColorPicker = false}
+      >
+        Apply
+      </button>
     </div>
+  {/if}
+  
+  {#if showSettings}
+    <div class="absolute top-16 right-4 p-4 rounded shadow-lg w-72 z-20" style="background-color: {bgColor}; border: 2px solid {accentColor};">
+      <h3 class="font-bold mb-4 text-lg" style="color: {textColor};">Settings</h3>
+      
+      <div class="mb-4">
+        <h4 class="font-semibold mb-2" style="color: {textColor};">Stackmat Timer</h4>
+        {#if !stackmatConnected}
+          <button 
+            style="background-color: {accentColor}; color: {buttonTextColor};" 
+            class="w-full py-2 rounded font-bold mb-2"
+            on:click={initStackmat}
+          >
+            Connect Stackmat
+          </button>
+        {:else}
+          <button 
+            style="background-color: {accentColor}; color: {buttonTextColor};" 
+            class="w-full py-2 rounded font-bold mb-2"
+            on:click={disconnectStackmat}
+          >
+            Disconnect Stackmat
+          </button>
+          <p class="text-sm mb-2" style="color: {textColor};">Status: Connected</p>
+        {/if}
+      </div>
+      
+      <div class="mb-4">
+        <h4 class="font-semibold mb-2" style="color: {textColor};">Timer Settings</h4>
+        <div class="flex items-center justify-between mb-2">
+          <span style="color: {textColor};">Hide Timer</span>
+          <button 
+            style="background-color: {accentColor}; color: {buttonTextColor};" 
+            class="px-3 py-1 rounded"
+            on:click={toggleTimerVisibility}
+          >
+            {timerHidden ? 'Show' : 'Hide'}
+          </button>
+        </div>
+      </div>
+      
+      <div class="mb-4">
+        <h4 class="font-semibold mb-2" style="color: {textColor};">Data Management</h4>
+        <button 
+          class="w-full py-2 rounded font-bold mb-2" 
+          style="background-color: #F87171; color: white;"
+          on:click={clearTimes}
+        >
+          Clear All Times
+        </button>
+      </div>
+      
+      <div class="mb-4">
+        <h4 class="font-semibold mb-2" style="color: {textColor};">Keyboard Shortcuts</h4>
+        <div class="text-sm" style="color: {textColor};">
+          <p><strong>Space:</strong> Start/Stop Timer</p>
+          <p><strong>Escape:</strong> Reset Timer</p>
+          <p><strong>Ctrl+C:</strong> Clear All Times</p>
+          <p><strong>Ctrl+H:</strong> Toggle Timer Visibility</p>
+        </div>
+      </div>
+      
+      <button 
+        style="background-color: {accentColor}; color: {buttonTextColor};"
+        class="w-full py-2 rounded font-bold"
+        on:click={() => showSettings = false}
+      >
+        Close Settings
+      </button>
+    </div>
+  {/if}
     
     <!-- Combined timer display -->
-    <div class="flex flex-col items-center">
-      {#if inspectionRunning}
-        <div class="text-8xl font-bold mb-6" style="color: {textColor};">Inspection: {inspectionDisplay}</div>
-      {:else}
-        <div class="text-8xl font-bold mb-6" style="color: {textColor};">{displayTime}</div>
-      {/if}
-    </div>
+    <div class="flex flex-col items-center mt-16">
+        {#if inspectionRunning}
+          <div class="text-8xl font-bold mb-6" style="color: {textColor};">Inspection: {inspectionDisplay}</div>
+        {:else if running}
+          <div class="text-8xl font-bold mb-6" style="color: {textColor};">{displayTime}</div>
+        {:else if timerHidden && times.length > 0}
+          <div class="text-8xl font-bold mb-6" style="color: {textColor};">{lastRecordedTime}</div>
+        {:else if timerHidden}
+          <div class="text-8xl font-bold mb-6" style="color: {textColor};">SOLVE</div>
+        {:else}
+          <div class="text-8xl font-bold mb-6" style="color: {textColor};">{displayTime}</div>
+        {/if}
+      </div>
     
     <!-- Stats information that replaces buttons -->
     <div class="grid grid-cols-2 gap-8 mb-6 w-full max-w-lg">
@@ -472,5 +611,10 @@
           {/each}
         </tbody>
       </table>
+    </div>
+    
+    <!-- Footer with version and credits -->
+    <div class="absolute bottom-2 left-0 right-0 text-center opacity-70 text-sm" style="color: {textColor};">
+      v1.1.0 | Made with 💖 | <a href="https://github.com/dgtlnght/felixargyle.dev" target="_blank" rel="noopener noreferrer" class="underline">GitHub</a>
     </div>
 </div>
