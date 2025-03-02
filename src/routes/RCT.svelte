@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { onMount } from 'svelte';
     let startTime: number;
     let running: boolean = false;
     let time: number = 0;
@@ -270,10 +271,12 @@
     function deleteTime(index: number): void {
       times.splice(index, 1);
       times = [...times];
+      saveToCookies();
     }
   
     function clearTimes(): void {
-      times = [];
+        times = [];
+        saveToCookies(); // yummy cookies?
     }
   
     function handleSpacebar(event: KeyboardEvent): void {
@@ -305,11 +308,13 @@
     function toggleDNF(index: number): void {
       times[index].dnf = !times[index].dnf;
       times = [...times];
+      saveToCookies();
     }
   
     function togglePlus2(index: number): void {
       times[index].plus2 = !times[index].plus2;
       times = [...times];
+      saveToCookies();
     }
     
     function toggleColorPicker(): void {
@@ -322,6 +327,7 @@
     
     function toggleTimerVisibility(): void {
       timerHidden = !timerHidden;
+      saveToCookies();
     }
     
     function applyTheme(theme: { bg: string, text: string, accent: string }): void {
@@ -329,7 +335,9 @@
       textColor = theme.text;
       accentColor = theme.accent;
       showColorPicker = false;
+      saveToCookies();
     }
+
     
     // Calculate contrast for text color against background
     function getContrastColor(hexColor: string): string {
@@ -349,12 +357,91 @@
     function getButtonTextColor(bgHex: string): string {
       return getContrastColor(bgHex);
     }
+
+    // Add these functions to your existing code
+
+    // Function to save times and settings to cookies
+    function saveToCookies(): void {
+    if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+        const timesJson = JSON.stringify(times);
+        
+        // Set expiration date (30 days from now)
+        const expirationDate = new Date();
+        expirationDate.setDate(expirationDate.getDate() + 30);
+        
+        // Save times to cookie
+        document.cookie = `cubeTimes=${encodeURIComponent(timesJson)};expires=${expirationDate.toUTCString()};path=/`;
+        
+        // Save settings to cookie
+        const settings = {
+            bg: bgColor,
+            text: textColor,
+            accent: accentColor,
+            timerHidden: timerHidden
+        };
+        document.cookie = `cubeSettings=${encodeURIComponent(JSON.stringify(settings))};expires=${expirationDate.toUTCString()};path=/`;
+        }
+    }
+    // Helper function to get a specific cookie by name
+    function getCookie(name: string): string | null {
+    const nameEQ = name + "=";
+    const ca = document.cookie.split(';');
+    for(let i = 0; i < ca.length; i++) {
+        let c = ca[i];
+        while (c.charAt(0) === ' ') c = c.substring(1, c.length);
+        if (c.indexOf(nameEQ) === 0) return decodeURIComponent(c.substring(nameEQ.length, c.length));
+    }
+    return null;
+    }
+
+    // Function to load data from cookies
+    function loadFromCookies(): void {
+    // Get times cookie
+    const timesJson = getCookie('cubeTimes');
+    if (timesJson) {
+        try {
+        const savedTimes = JSON.parse(timesJson);
+        if (Array.isArray(savedTimes)) {
+            times = savedTimes;
+        }
+        } catch (error) {
+        console.error('Error loading times from cookie:', error);
+        }
+    }
+    
+    // Get settings cookie
+    const settingsJson = getCookie('cubeSettings');
+    if (settingsJson) {
+        try {
+        const settings = JSON.parse(settingsJson);
+        if (settings) {
+            bgColor = settings.bg || bgColor;
+            textColor = settings.text || textColor;
+            accentColor = settings.accent || accentColor;
+            timerHidden = settings.timerHidden !== undefined ? settings.timerHidden : timerHidden;
+        }
+        } catch (error) {
+        console.error('Error loading settings from cookie:', error);
+        }
+    }
+    }
+
+    onMount(() => {
+        loadFromCookies();
+    });
   
     $: avg = calculateAverage(times);
     $: avg5 = calculateAverageOfFive(times);
     $: avg12 = calculateAverageOfTwelve(times);
     $: bestTime = getBestTime(times);
     $: buttonTextColor = getButtonTextColor(accentColor);
+    $: {
+        if (times.length > 0) saveToCookies();
+    }
+
+    $: {
+        if (bgColor && textColor && accentColor) saveToCookies();
+    }
 </script>
   
 <svelte:window on:keydown={handleSpacebar} />
@@ -553,7 +640,7 @@
             <div class="text-8xl font-bold mb-6" style="color: {textColor};">{displayTime}</div>
         {/if}
     </div>
-    
+
     <!-- Stats information that replaces buttons -->
     <div class="grid grid-cols-2 gap-8 mb-6 w-full max-w-lg">
       <div style="border-color: {accentColor};" class="bg-transparent border px-6 py-4 rounded text-center">
