@@ -363,14 +363,16 @@
     // Function to save times and settings to cookies
     function saveToCookies(): void {
     if (typeof window !== 'undefined' && typeof document !== 'undefined') {
-        const timesJson = JSON.stringify(times);
+        try {
+        // Make sure times is defined before stringifying
+        const timesJson = JSON.stringify(times || []);
         
         // Set expiration date (30 days from now)
         const expirationDate = new Date();
         expirationDate.setDate(expirationDate.getDate() + 30);
         
-        // Save times to cookie
-        document.cookie = `cubeTimes=${encodeURIComponent(timesJson)};expires=${expirationDate.toUTCString()};path=/`;
+        // Save times to cookie with proper encoding
+        document.cookie = `cubeTimes=${encodeURIComponent(timesJson)};expires=${expirationDate.toUTCString()};path=/;SameSite=Strict`;
         
         // Save settings to cookie
         const settings = {
@@ -379,33 +381,50 @@
             accent: accentColor,
             timerHidden: timerHidden
         };
-        document.cookie = `cubeSettings=${encodeURIComponent(JSON.stringify(settings))};expires=${expirationDate.toUTCString()};path=/`;
+        
+        document.cookie = `cubeSettings=${encodeURIComponent(JSON.stringify(settings))};expires=${expirationDate.toUTCString()};path=/;SameSite=Strict`;
+        console.log("Saved to cookies:", { times: times.length, settings });
+        } catch (error) {
+        console.error("Error saving to cookies:", error);
         }
     }
+    }
+
+
     // Helper function to get a specific cookie by name
     function getCookie(name: string): string | null {
+    if (typeof document === 'undefined') return null;
+    
     const nameEQ = name + "=";
     const ca = document.cookie.split(';');
     for(let i = 0; i < ca.length; i++) {
-        let c = ca[i];
-        while (c.charAt(0) === ' ') c = c.substring(1, c.length);
-        if (c.indexOf(nameEQ) === 0) return decodeURIComponent(c.substring(nameEQ.length, c.length));
+        let c = ca[i].trim();
+        if (c.indexOf(nameEQ) === 0) {
+        try {
+            return decodeURIComponent(c.substring(nameEQ.length));
+        } catch (e) {
+            console.error(`Error decoding cookie ${name}:`, e);
+            return c.substring(nameEQ.length);
+        }
+        }
     }
     return null;
     }
 
-    // Function to load data from cookies
+
     function loadFromCookies(): void {
+    if (typeof window === 'undefined' || typeof document === 'undefined') return;
+    
     // Get times cookie
     const timesJson = getCookie('cubeTimes');
     if (timesJson) {
         try {
         const savedTimes = JSON.parse(timesJson);
         if (Array.isArray(savedTimes)) {
-            times = savedTimes;
+            times = savedTimes as { time: number; dnf: boolean; plus2: boolean }[];
         }
         } catch (error) {
-        console.error('Error loading times from cookie:', error);
+        console.error('Error parsing times from cookie:', error);
         }
     }
     
@@ -415,13 +434,13 @@
         try {
         const settings = JSON.parse(settingsJson);
         if (settings) {
-            bgColor = settings.bg || bgColor;
-            textColor = settings.text || textColor;
-            accentColor = settings.accent || accentColor;
-            timerHidden = settings.timerHidden !== undefined ? settings.timerHidden : timerHidden;
+            if (typeof settings.bg === 'string') bgColor = settings.bg;
+            if (typeof settings.text === 'string') textColor = settings.text;
+            if (typeof settings.accent === 'string') accentColor = settings.accent;
+            if (typeof settings.timerHidden === 'boolean') timerHidden = settings.timerHidden;
         }
         } catch (error) {
-        console.error('Error loading settings from cookie:', error);
+        console.error('Error parsing settings from cookie:', error);
         }
     }
     }
