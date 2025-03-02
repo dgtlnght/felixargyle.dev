@@ -385,39 +385,46 @@
 
     // Function to save times and settings to cookies
     function saveToCookies(): void {
-    if (typeof window !== 'undefined' && typeof document !== 'undefined') {
-        try {
-        // Make sure times is defined before stringifying
-        const timesJson = JSON.stringify(times || []);
-        
-        // Set expiration date (30 days from now)
-        const expirationDate = new Date();
-        expirationDate.setDate(expirationDate.getDate() + 30);
-        
-        // Save times to cookie with proper encoding and size limitation
-        // If times are too large, store fewer of them
-        let timesToSave = times;
-        if (timesJson.length > 4000) { // Cookie size limitation
-            timesToSave = times.slice(-50); // Save only the last 50 times
+        // Don't save during initial component setup
+        if (!initialLoadComplete && typeof window !== 'undefined') {
+            console.log("Skipping save during initial load");
+            return;
         }
         
-        document.cookie = `cubeTimes=${encodeURIComponent(JSON.stringify(timesToSave))};expires=${expirationDate.toUTCString()};path=/;SameSite=Strict`;
-        
-        // Save settings to cookie
-        const settings = {
-            bg: bgColor,
-            text: textColor,
-            accent: accentColor,
-            timerHidden: timerHidden
-        };
-        
-        document.cookie = `cubeSettings=${encodeURIComponent(JSON.stringify(settings))};expires=${expirationDate.toUTCString()};path=/;SameSite=Strict`;
-        console.log("Saved to cookies:", { times: timesToSave.length, settings });
-        } catch (error) {
-        console.error("Error saving to cookies:", error);
+        if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+            try {
+                // Make sure times is defined before stringifying
+                const timesJson = JSON.stringify(times || []);
+                
+                // Set expiration date (30 days from now)
+                const expirationDate = new Date();
+                expirationDate.setDate(expirationDate.getDate() + 30);
+                
+                // Save times to cookie with proper encoding and size limitation
+                // If times are too large, store fewer of them
+                let timesToSave = times;
+                if (timesJson.length > 4000) { // Cookie size limitation
+                    timesToSave = times.slice(-50); // Save only the last 50 times
+                }
+                
+                document.cookie = `cubeTimes=${encodeURIComponent(JSON.stringify(timesToSave))};expires=${expirationDate.toUTCString()};path=/;SameSite=Strict`;
+                
+                // Save settings to cookie
+                const settings = {
+                    bg: bgColor,
+                    text: textColor,
+                    accent: accentColor,
+                    timerHidden: timerHidden
+                };
+                
+                document.cookie = `cubeSettings=${encodeURIComponent(JSON.stringify(settings))};expires=${expirationDate.toUTCString()};path=/;SameSite=Strict`;
+                console.log("Saved to cookies:", { times: timesToSave.length, settings });
+            } catch (error) {
+                console.error("Error saving to cookies:", error);
+            }
         }
     }
-    }
+
 
 
     function getCookie(name: string): string | null {
@@ -439,46 +446,70 @@
     return null;
 }
 
+let initialLoadComplete = false;
+
 function loadFromCookies(): void {
-    if (typeof window === 'undefined' || typeof document === 'undefined') return;
-    
-    // Get times cookie
-    const timesJson = getCookie('cubeTimes');
-    if (timesJson) {
-        try {
-        const loadedTimes = JSON.parse(timesJson);
-        if (Array.isArray(loadedTimes)) {
-            times = loadedTimes;
+        if (typeof window === 'undefined' || typeof document === 'undefined') return;
+        
+        // Get times cookie
+        const timesJson = getCookie('cubeTimes');
+        if (timesJson) {
+            try {
+                const loadedTimes = JSON.parse(timesJson);
+                if (Array.isArray(loadedTimes)) {
+                    times = loadedTimes;
+                    console.log("Loaded times from cookies:", loadedTimes.length);
+                }
+            } catch (error) {
+                console.error('Error parsing times from cookie:', error);
+            }
         }
-        } catch (error) {
-        console.error('Error parsing times from cookie:', error);
-        }
-    }
-    
-    // Get settings cookie
-    const settingsJson = getCookie('cubeSettings');
+
+        
+        // Get settings cookie
+        const settingsJson = getCookie('cubeSettings');
     if (settingsJson) {
         try {
-        const settings = JSON.parse(settingsJson);
-        if (settings) {
-            if (typeof settings.bg === 'string') bgColor = settings.bg;
-            if (typeof settings.text === 'string') textColor = settings.text;
-            if (typeof settings.accent === 'string') accentColor = settings.accent;
-            if (typeof settings.timerHidden === 'boolean') timerHidden = settings.timerHidden;
-        }
+            const settings = JSON.parse(settingsJson);
+            if (settings) {
+                if (typeof settings.bg === 'string') bgColor = settings.bg;
+                if (typeof settings.text === 'string') textColor = settings.text;
+                if (typeof settings.accent === 'string') accentColor = settings.accent;
+                if (typeof settings.timerHidden === 'boolean') timerHidden = settings.timerHidden;
+                console.log("Loaded settings from cookies:", settings);
+            }
         } catch (error) {
-        console.error('Error parsing settings from cookie:', error);
+            console.error('Error parsing settings from cookie:', error);
         }
     }
+    
+    // Mark loading as complete to prevent immediate re-saving
+    initialLoadComplete = true;
 }
-
-    function checkCookies(): void {
+        // Get settings cookie
+        const settingsJson = getCookie('cubeSettings');
+        if (settingsJson) {
+            try {
+            const settings = JSON.parse(settingsJson);
+            if (settings) {
+                if (typeof settings.bg === 'string') bgColor = settings.bg;
+                if (typeof settings.text === 'string') textColor = settings.text;
+                if (typeof settings.accent === 'string') accentColor = settings.accent;
+                if (typeof settings.timerHidden === 'boolean') timerHidden = settings.timerHidden;
+            }
+            } catch (error) {
+            console.error('Error parsing settings from cookie:', error);
+            }
+        }
+    
+        function checkCookies(): void {
         console.log("All cookies:", document.cookie);
         const timesJson = getCookie('cubeTimes');
         const settingsJson = getCookie('cubeSettings');
         console.log("Times cookie:", timesJson);
         console.log("Settings cookie:", settingsJson);
     }
+
 
     function updateAverages(): void {
         avg = calculateAverage(times);
@@ -489,38 +520,40 @@ function loadFromCookies(): void {
     }
 
     // Call this after loading from cookies to check the state
-    onMount(() => {
-    loadFromCookies();
-    checkCookies();
-    });
-
-    onMount(() => {
-        loadFromCookies();
-    });
-
     $: {
-    if (times) {
+    if (times && initialLoadComplete) {
         updateAverages();
-        // Only save if we're mounted (to avoid SSR issues)
+        // Only save if we're mounted and initial load is complete
         if (typeof window !== 'undefined' && typeof document !== 'undefined' && times.length > 0) {
-        saveToCookies();
+            saveToCookies();
         }
     }
-    }
+}
 
-    $: {
-    
-    // Only save if we're mounted (to avoid SSR issues)
-    if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+$: {
+    // Only save if we're mounted and initial load is complete
+    if (typeof window !== 'undefined' && typeof document !== 'undefined' && initialLoadComplete) {
         if (times && times.length > 0) saveToCookies();
     }
-    }
+}
 
-    $: {
-    if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+$: {
+    if (typeof window !== 'undefined' && typeof document !== 'undefined' && initialLoadComplete) {
         if (bgColor && textColor && accentColor) saveToCookies();
     }
-    }
+}
+
+// Update the onMount function to do things in the right order
+onMount(() => {
+    loadFromCookies();
+    checkCookies();
+    // We defer the initialLoadComplete setting to the end of loadFromCookies now
+    
+    // After a small delay, update the averages based on loaded data
+    setTimeout(() => {
+        updateAverages();
+    }, 100);
+});
 </script>
   
 <svelte:window on:keydown={handleSpacebar} />
