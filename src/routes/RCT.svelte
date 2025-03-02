@@ -376,19 +376,6 @@
         </button>
 
         <div class="flex space-x-4">
-          <!-- GitHub link -->
-          <a 
-            href="https://github.com/dgtlnght/felixargyle.dev" 
-            target="_blank" 
-            rel="noopener noreferrer"
-            style="background-color: {accentColor}; color: {buttonTextColor};"
-            class="px-4 py-2 rounded font-bold flex items-center"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2">
-              <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path>
-            </svg>
-            GitHub
-          </a>
 
           <!-- Toggle timer visibility -->
           <button 
@@ -553,17 +540,19 @@
     <!-- Combined timer display -->
     <div class="flex flex-col items-center mt-16">
         {#if inspectionRunning}
-          <div class="text-8xl font-bold mb-6" style="color: {textColor};">Inspection: {inspectionDisplay}</div>
+            <div class="text-8xl font-bold mb-6" style="color: {textColor};">{inspectionDisplay}</div>
+        {:else if running && timerHidden}
+            <div class="text-8xl font-bold mb-6" style="color: {textColor};">SOLVE</div>
         {:else if running}
-          <div class="text-8xl font-bold mb-6" style="color: {textColor};">{displayTime}</div>
+            <div class="text-8xl font-bold mb-6" style="color: {textColor};">{displayTime}</div>
         {:else if timerHidden && times.length > 0}
-          <div class="text-8xl font-bold mb-6" style="color: {textColor};">{lastRecordedTime}</div>
+            <div class="text-8xl font-bold mb-6" style="color: {textColor};">{lastRecordedTime}</div>
         {:else if timerHidden}
-          <div class="text-8xl font-bold mb-6" style="color: {textColor};">SOLVE</div>
+            <div class="text-8xl font-bold mb-6" style="color: {textColor};">SOLVE</div>
         {:else}
-          <div class="text-8xl font-bold mb-6" style="color: {textColor};">{displayTime}</div>
+            <div class="text-8xl font-bold mb-6" style="color: {textColor};">{displayTime}</div>
         {/if}
-      </div>
+    </div>
     
     <!-- Stats information that replaces buttons -->
     <div class="grid grid-cols-2 gap-8 mb-6 w-full max-w-lg">
@@ -615,6 +604,6 @@
     
     <!-- Footer with version and credits -->
     <div class="absolute bottom-2 left-0 right-0 text-center opacity-70 text-sm" style="color: {textColor};">
-      v1.1.0 | Made with 💖 | <a href="https://github.com/dgtlnght/felixargyle.dev" target="_blank" rel="noopener noreferrer" class="underline">GitHub</a>
+      v1.1.0 | Made with 💖 | <a href="https://github.com/dgtlnght/felixargyle.dev" target="_blank" rel="noopener noreferrer" class="underline">dgtlnght</a>
     </div>
 </div>
