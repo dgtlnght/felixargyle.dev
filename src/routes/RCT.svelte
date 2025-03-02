@@ -579,7 +579,7 @@ onMount(() => {
           <!-- Toggle timer visibility -->
           <button 
             style="background-color: {accentColor}; color: {buttonTextColor};"
-            class="px-4 py-2 rounded font-bold"
+            class="px-4 py-2 rounded font-bold" 
             on:click={toggleTimerVisibility}
           >
             {timerHidden ? 'Show Timer' : 'Hide Timer'}
