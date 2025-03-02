@@ -11,6 +11,12 @@
     let inspectionDisplay: string = "0.00";
     let timerHidden: boolean = false;
     let lastRecordedTime: string = "";
+
+    let avg: string = "N/A";
+    let avg5: string = "N/A";
+    let avg12: string = "N/A";
+    let bestTime: string = "N/A";
+    let buttonTextColor: string = "#000000";
     
     // Settings menu
     let showSettings: boolean = false;
@@ -88,6 +94,23 @@
         }
     }
     
+    function saveToLocalStorage(): void {
+    if (typeof window !== 'undefined' && window.localStorage) {
+        try {
+        window.localStorage.setItem('cubeTimes', JSON.stringify(times || []));
+        window.localStorage.setItem('cubeSettings', JSON.stringify({
+            bg: bgColor,
+            text: textColor,
+            accent: accentColor,
+            timerHidden: timerHidden
+        }));
+        console.log("Saved to localStorage");
+        } catch (error) {
+        console.error("Error saving to localStorage:", error);
+        }
+    }
+    }
+
     // Process audio data from stackmat
     function processStackmatAudio(e: AudioProcessingEvent) {
         if (!audioContext) return;
@@ -371,8 +394,14 @@
         const expirationDate = new Date();
         expirationDate.setDate(expirationDate.getDate() + 30);
         
-        // Save times to cookie with proper encoding
-        document.cookie = `cubeTimes=${encodeURIComponent(timesJson)};expires=${expirationDate.toUTCString()};path=/;SameSite=Strict`;
+        // Save times to cookie with proper encoding and size limitation
+        // If times are too large, store fewer of them
+        let timesToSave = times;
+        if (timesJson.length > 4000) { // Cookie size limitation
+            timesToSave = times.slice(-50); // Save only the last 50 times
+        }
+        
+        document.cookie = `cubeTimes=${encodeURIComponent(JSON.stringify(timesToSave))};expires=${expirationDate.toUTCString()};path=/;SameSite=Strict`;
         
         // Save settings to cookie
         const settings = {
@@ -383,7 +412,7 @@
         };
         
         document.cookie = `cubeSettings=${encodeURIComponent(JSON.stringify(settings))};expires=${expirationDate.toUTCString()};path=/;SameSite=Strict`;
-        console.log("Saved to cookies:", { times: times.length, settings });
+        console.log("Saved to cookies:", { times: timesToSave.length, settings });
         } catch (error) {
         console.error("Error saving to cookies:", error);
         }
@@ -391,7 +420,6 @@
     }
 
 
-    // Helper function to get a specific cookie by name
     function getCookie(name: string): string | null {
     if (typeof document === 'undefined') return null;
     
@@ -409,19 +437,18 @@
         }
     }
     return null;
-    }
+}
 
-
-    function loadFromCookies(): void {
+function loadFromCookies(): void {
     if (typeof window === 'undefined' || typeof document === 'undefined') return;
     
     // Get times cookie
     const timesJson = getCookie('cubeTimes');
     if (timesJson) {
         try {
-        const savedTimes = JSON.parse(timesJson);
-        if (Array.isArray(savedTimes)) {
-            times = savedTimes as { time: number; dnf: boolean; plus2: boolean }[];
+        const loadedTimes = JSON.parse(timesJson);
+        if (Array.isArray(loadedTimes)) {
+            times = loadedTimes;
         }
         } catch (error) {
         console.error('Error parsing times from cookie:', error);
@@ -443,23 +470,56 @@
         console.error('Error parsing settings from cookie:', error);
         }
     }
+}
+
+    function checkCookies(): void {
+        console.log("All cookies:", document.cookie);
+        const timesJson = getCookie('cubeTimes');
+        const settingsJson = getCookie('cubeSettings');
+        console.log("Times cookie:", timesJson);
+        console.log("Settings cookie:", settingsJson);
     }
+
+    function updateAverages(): void {
+        avg = calculateAverage(times);
+        avg5 = calculateAverageOfFive(times);
+        avg12 = calculateAverageOfTwelve(times);
+        bestTime = getBestTime(times);
+        buttonTextColor = getButtonTextColor(accentColor);
+    }
+
+    // Call this after loading from cookies to check the state
+    onMount(() => {
+    loadFromCookies();
+    checkCookies();
+    });
 
     onMount(() => {
         loadFromCookies();
     });
-  
-    $: avg = calculateAverage(times);
-    $: avg5 = calculateAverageOfFive(times);
-    $: avg12 = calculateAverageOfTwelve(times);
-    $: bestTime = getBestTime(times);
-    $: buttonTextColor = getButtonTextColor(accentColor);
+
     $: {
-        if (times.length > 0) saveToCookies();
+    if (times) {
+        updateAverages();
+        // Only save if we're mounted (to avoid SSR issues)
+        if (typeof window !== 'undefined' && typeof document !== 'undefined' && times.length > 0) {
+        saveToCookies();
+        }
+    }
     }
 
     $: {
+    
+    // Only save if we're mounted (to avoid SSR issues)
+    if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+        if (times && times.length > 0) saveToCookies();
+    }
+    }
+
+    $: {
+    if (typeof window !== 'undefined' && typeof document !== 'undefined') {
         if (bgColor && textColor && accentColor) saveToCookies();
+    }
     }
 </script>
   
