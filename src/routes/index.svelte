@@ -1,6 +1,19 @@
-<h1>Welcome to Felixargyle.dev! The website of dgtlnght.</h1>
-<p>This website is a work in progress as I am migrating from html to svelte so leave me be :C (this will take about 2-3 weeks to finish :D)</p>
-<br>
-<p>Credit to artie for inspiration. you can find them at https://astolfo.cafe</p>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com">
+<link href="https://fonts.googleapis.com/css2?family=Cabin:ital,wght@0,400..700;1,400..700&display=swap" rel="stylesheet">
 
+<style>
+.cabin {
+  font-family: "Cabin", sans-serif;
+  font-optical-sizing: auto;
+  font-weight: 400;
+  font-style: normal;
+  font-variation-settings:
+    "wdth" 100;
+}
 
+</style>
+
+<div class="h-screen text-[#F2F5EA] text-center bg-[#558C8C] cabin">
+    <h1 class="text-center">felix argyle</h1>
+</div>
