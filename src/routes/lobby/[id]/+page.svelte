@@ -1,151 +1,86 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import { goto } from '$app/navigation';
-  import { doc, onSnapshot, runTransaction, type DocumentSnapshot, serverTimestamp } from 'firebase/firestore';
-  import { auth, db } from '$lib/firebase';
-  import { signInAnonymously, onAuthStateChanged, type User } from 'firebase/auth';
-  
-  export let data: { id: string };
+  import { getFirestore, doc, setDoc, updateDoc, onSnapshot } from 'firebase/firestore';
+  import { getAuth, signInAnonymously } from 'firebase/auth';
+  import { app } from '$lib/firebase'; // your firebase initialization
 
-  interface Lobby {
-    id: string;
-    players: string[];
-    gameId: string | null;
-    createdAt: any;
+  const db = getFirestore(app);
+  const auth = getAuth(app);
+
+  export let params: { id: string }; // lobby ID from URL
+  let lobbyId: string = params.id;
+  let userId: string;
+  let unsubscribeLobby: () => void;
+
+  async function ensureLogin() {
+    if (!auth.currentUser) {
+      const userCred = await signInAnonymously(auth);
+      userId = userCred.user.uid;
+      console.log('[Lobby] Authenticated user:', userId);
+    } else {
+      userId = auth.currentUser.uid;
+      console.log('[Lobby] User already authenticated:', userId);
+    }
   }
 
-  let lobbyId = data.id;
-  let lobby: Lobby | null = null;
-  let currentUser: User | null = null;
-  let loading = true;
-  let unsubscribe: (() => void) | null = null;
-  let lobbyDocRef: any;
+  async function joinLobby() {
+    const lobbyRef = doc(db, 'lobbies', lobbyId);
 
-  // Authenticates the user (anonymous)
-  async function ensureLogin(): Promise<User | null> {
-    return new Promise((resolve) => {
-      onAuthStateChanged(auth, async (user) => {
-        if (user) {
-          console.log('[Auth] Signed in:', user.uid);
-          resolve(user);
-        } else {
-          try {
-            const anonUser = (await signInAnonymously(auth)).user;
-            console.log('[Auth] Signed in anonymously:', anonUser.uid);
-            resolve(anonUser);
-          } catch (e) {
-            console.error('[Auth] Failed anonymous login:', e);
-            resolve(null);
-          }
-        }
-      });
-    });
-  }
+    unsubscribeLobby = onSnapshot(lobbyRef, async (snapshot) => {
+      const data = snapshot.data();
 
-  // Subscribe to lobby snapshot
-  function subscribeLobby() {
-    if (!lobbyDocRef) return;
-    console.log('[Lobby] Subscribing...');
-    unsubscribe = onSnapshot(lobbyDocRef, (snap: DocumentSnapshot<Lobby>) => {
-      if (!snap.exists()) {
-        console.warn('[Lobby] Lobby does not exist!');
+      if (!data) {
+        console.error('[Lobby] Lobby does not exist!');
         return;
       }
 
-      lobby = snap.data() as Lobby;
-      console.log('[Lobby] Snapshot:', lobby);
-
-      // Redirect if game is ready
-      if (lobby.gameId) {
-        console.log('[Lobby] Game ready, redirecting...');
-        goto(`/game/${lobby.gameId}`);
+      // Add user to lobby if not present
+      if (!data.players?.includes(userId)) {
+        await updateDoc(lobbyRef, {
+          players: [...(data.players || []), userId]
+        });
+        console.log('[Lobby] Added user to lobby');
+        return; // wait for snapshot update
       }
 
-      loading = false;
-    }, (err) => {
-      console.error('[Lobby] Snapshot error:', err);
+      console.log('[Lobby] Lobby updated:', data);
+
+      // Check if lobby is full
+      if (data.players.length >= 2) {
+        if (!data.gameId) {
+          // Create a new game document
+          const gameRef = doc(db, 'games', crypto.randomUUID());
+          await setDoc(gameRef, {
+            gameId: gameRef.id,
+            boardFEN: 'start', // initial board FEN
+            createdAt: new Date(),
+          });
+
+          await updateDoc(lobbyRef, { gameId: gameRef.id });
+          console.log('[Lobby] Created game and updated lobby:', gameRef.id);
+        } else {
+          console.log('[Lobby] Game ready, redirecting...');
+          if (unsubscribeLobby) unsubscribeLobby();
+          goto(`/game/${data.gameId}`);
+        }
+      }
     });
   }
 
-  // Join the lobby safely
-  async function joinLobby() {
-    if (!lobbyDocRef || !currentUser) return;
-    console.log('[Lobby] Attempting join...');
-
-    try {
-      await runTransaction(db, async (transaction) => {
-        const snap = await transaction.get(lobbyDocRef) as DocumentSnapshot<Lobby>;
-        if (!snap.exists()) throw new Error('Lobby does not exist');
-
-        const data = snap.data() as Lobby;
-        if (!data.players.includes(currentUser!.uid)) {
-          const updatedPlayers = [...data.players, currentUser!.uid];
-          const updates: Partial<Lobby> = {
-            players: updatedPlayers,
-            // create gameId if second player joins
-            gameId: (!data.gameId && updatedPlayers.length === 2) ? crypto.randomUUID() : data.gameId,
-            createdAt: data.createdAt || serverTimestamp()
-          };
-
-          transaction.update(lobbyDocRef, updates);
-          console.log('[Lobby] Joined successfully:', updates);
-        }
-      });
-    } catch (e: any) {
-      if (e.code === 'permission-denied') {
-        console.error('[Lobby] Permission denied. Check Firestore rules.');
-      } else {
-        console.error('[Lobby] Failed to join lobby:', e);
-      }
-    }
-  }
-
   onMount(async () => {
-    console.log('[Lobby] Mounting page...');
-    currentUser = await ensureLogin();
-
-    if (currentUser) {
-      console.log('[Lobby] Current user:', currentUser.uid);
-      lobbyDocRef = doc(db, 'lobbies', lobbyId);
-      subscribeLobby();
-
-      // Attempt to join automatically if not already in lobby
-      try {
-        await joinLobby();
-      } catch (e) {
-        console.error('[Lobby] Auto-join failed:', e);
-      }
-    } else {
-      console.error('[Lobby] Could not authenticate user!');
-    }
+    console.log('[Lobby] Mounting lobby page:', lobbyId);
+    await ensureLogin();
+    await joinLobby();
   });
 
   onDestroy(() => {
-    if (unsubscribe) {
-      console.log('[Lobby] Unsubscribing...');
-      unsubscribe();
-    }
+    if (unsubscribeLobby) unsubscribeLobby();
+    console.log('[Lobby] Unsubscribed from lobby updates.');
   });
 </script>
 
-{#if loading}
-  <p>killing families.....</p>
-{:else}
-  <div class="lobby-wrapper">
-    <h2>Lobby: {lobbyId}</h2>
-    <p>Players: {lobby?.players?.length || 0} / 2</p>
-    <ul>
-      {#each lobby?.players || [] as p}
-        <li>{p}</li>
-      {/each}
-    </ul>
-
-    {#if lobby && (lobby.players?.length || 0) < 2}
-      <p>Waiting for opponent to join...</p>
-    {/if}
-
-    {#if currentUser && lobby && !(lobby.players?.includes(currentUser.uid))}
-      <button on:click={joinLobby}>Join Lobby</button>
-    {/if}
-  </div>
-{/if}
+<main class="p-4">
+  <h1 class="text-2xl font-bold">Lobby {lobbyId}</h1>
+  <p class="mt-2 text-gray-600">Waiting for opponent...</p>
+</main>

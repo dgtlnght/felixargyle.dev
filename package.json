@@ -24,7 +24,9 @@
 	},
 	"dependencies": {
 		"@tailwindcss/vite": "^4.1.4",
-		"chess.js": "^1.4.0",
+		"chess.js": "^0.10.3",
+		"chessboard-element": "^1.2.0",
+		"chessboardjs": "^0.0.1",
 		"firebase": "^12.2.1",
 		"tailwindcss": "^4.1.4"
 	}

@@ -1,78 +1,104 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-  import { get } from 'svelte/store';
+  import { onMount, onDestroy } from 'svelte';
   import { page } from '$app/stores';
-  import { getFirestore, doc, onSnapshot, updateDoc, DocumentSnapshot } from 'firebase/firestore';
-  import { getAuth } from 'firebase/auth';
-  import { app } from '$lib/firebase';
+  import { getFirestore, doc, onSnapshot, updateDoc } from 'firebase/firestore';
+  import { getAuth, onAuthStateChanged } from 'firebase/auth';
   import { Chess } from 'chess.js';
+  import ChessBoard from 'chessboardjs';
+  import 'chessboardjs/dist/chessboard-1.0.0.min.css';
 
-  interface Game {
-    id: string;
-    board: string;          // FEN string
-    moves: { from: string; to: string }[];
-    turn: 'w' | 'b';
-    updatedAt: Date;
-  }
+  const db = getFirestore();
+  const auth = getAuth();
 
-  const db = getFirestore(app);
-  const auth = getAuth(app);
+  let gameId: string = '';
+  let userId: string | null = null;
+  let playerColor: 'w' | 'b' | null = null;
+  let players: string[] = [];
+  let game: any;
+  let board: any;
 
-  let gameId: string | undefined;
-  let gameDocRef: any;
-  let game: Game | null = null;
-  let loading = true;
-  let chess: Chess;
-  let currentUser: any = null;
+  let unsubscribe: (() => void) | null = null;
 
-  onMount(async () => {
-    currentUser = auth.currentUser;
-    if (!currentUser) return;
+  // Load gameId from URL and auth state
+  onMount(() => {
+    const unsubPage = page.subscribe(($page) => {
+      if ($page.params.id) gameId = $page.params.id;
+    });
 
-    const $p = get(page);
-    gameId = $p.params.id;
-    if (!gameId) return;
+    onAuthStateChanged(auth, (user) => {
+      if (user) userId = user.uid;
+    });
 
-    gameDocRef = doc(db, 'games', gameId);
+    const gameRef = doc(db, 'games', gameId);
 
-    onSnapshot(gameDocRef, (snap: DocumentSnapshot<Game>) => {
-      if (snap.exists()) {
-        game = snap.data() as Game;
-        chess = new Chess(game.board);
-        loading = false;
+    unsubscribe = onSnapshot(gameRef, (snapshot) => {
+      const data = snapshot.data();
+      if (!data) return;
+
+      // Assign players and determine color
+      players = data.players || [];
+      if (userId) {
+        playerColor = players[0] === userId ? 'w' : players[1] === userId ? 'b' : null;
+      }
+
+      // Initialize chess.js game
+      if (!game) game = new Chess();
+      if (data.fen) game.load(data.fen);
+
+      // Initialize chessboard.js board
+      if (!board) {
+        board = ChessBoard('board1', {
+          draggable: true,
+          position: game.fen(),
+          orientation: playerColor === 'b' ? 'black' : 'white',
+          onDragStart: (source, piece) => {
+            // Only allow moving own pieces and when it's their turn
+            if (!playerColor) return false;
+            const pieceColor = piece[0]; // 'wP', 'bK', etc.
+            const turn = game.turn(); // 'w' or 'b'
+            return pieceColor === playerColor && turn === playerColor;
+          },
+          onDrop: (source, target) => {
+            const move = game.move({ from: source, to: target, promotion: 'q' });
+            if (move === null) return 'snapback';
+
+            // Update board and save to Firebase
+            board.position(game.fen());
+            updateDoc(gameRef, { fen: game.fen(), currentTurn: game.turn() }).catch(console.error);
+          },
+          onSnapEnd: () => {
+            board.position(game.fen());
+          }
+        });
       } else {
-        console.error('Game does not exist');
+        board.position(game.fen());
       }
     });
+
+    return () => unsubPage();
   });
 
-  async function movePiece(from: string, to: string) {
-    if (!game || !chess) return;
-    const move = chess.move({ from, to, promotion: 'q' });
-    if (move) {
-      game.board = chess.fen();
-      game.moves.push({ from, to });
-      game.turn = chess.turn() as 'w' | 'b';
-      await updateDoc(gameDocRef, {
-        board: game.board,
-        moves: game.moves,
-        turn: game.turn,
-        updatedAt: new Date(),
-      });
-    }
-  }
+  onDestroy(() => {
+    if (unsubscribe) unsubscribe();
+  });
 </script>
 
-{#if loading}
-  <p>Loading game...</p>
-{:else}
-  <div class="chessboard-wrapper">
-    <!-- Minimal chessboard rendering -->
-    <p>Chessboard will render here using PNGs from /pieces/</p>
-    <!-- Implement drag-and-drop or click-to-move in ChessBoard.svelte -->
-  </div>
-{/if}
+<main class="p-4">
+  <h1 class="text-2xl font-bold mb-4">Chess Game</h1>
+
+  {#if players.length < 2}
+    <p>Waiting for opponent...</p>
+  {:else}
+    <p>Your color: {playerColor}</p>
+    <p>Current turn: {game?.turn()}</p>
+  {/if}
+
+  <div id="board1" class="mx-auto mt-4"></div>
+</main>
 
 <style>
-  .chessboard-wrapper { display:flex; flex-direction:column; align-items:center; padding:1rem; }
+  #board1 {
+    width: 400px;
+    margin: auto;
+  }
 </style>

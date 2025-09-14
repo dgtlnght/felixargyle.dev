@@ -41,10 +41,7 @@ body{
 </style>
 
 <body>
-  <div class="flex grid h-screen justify-center items-center bg-black red-hat-mono-300 w-screen object-fill absolute">
-    <div class="text-white text-2xl col-start-1 row-start-1">hello there.</div>
-    <div class="text-white text-2xl col-start-2 row-start-2">my names dgtlnght</div>
-    <div class="text-white text-2xl col-start-3 row-start-3">find me over on <a href="https://github.com/dgtlnght" class="underline">github!</a></div>
-    <div class="main"></div>
-  </div>
+  <p>under construction!!!</p>
+  <br>
+  <p>it will be back soon. and better than ever..........xLjmP Te HzyE Mp Dz dZZy</p>
 </body>
