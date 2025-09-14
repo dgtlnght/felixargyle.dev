@@ -41,7 +41,9 @@ body{
 </style>
 
 <body>
-  <p>under construction!!!</p>
-  <br>
-  <p>it will be back soon. and better than ever..........xLjmP Te HzyE Mp Dz dZZy</p>
+  <div style="color: white;">
+    <p>under construction!!!</p>
+    <br>
+    <p>it will be back soon. and better than ever..........xLjmP Te HzyE Mp Dz dZZy</p>
+  </div>
 </body>
